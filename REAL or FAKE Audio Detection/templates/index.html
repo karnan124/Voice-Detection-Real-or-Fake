@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real or Fake Detection</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            perspective: 1200px;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .container {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.8));
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transform-style: preserve-3d;
+            transform: rotateX(20deg) rotateY(-20deg) translateZ(30px) scale(0.9);
+            transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            position: relative;
+            z-index: 1;
+        }
+
+        .container:hover {
+            transform: rotateX(0deg) rotateY(0deg) translateZ(0px) scale(1);
+            box-shadow: 0 35px 70px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
+        h1 {
+            color: #4a4a4a;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        p {
+            color: #666666;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            margin-top: 20px;
+            padding: 10px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        input[type="file"]:hover {
+            border-color: #764ba2;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 25px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: #ffffff;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            transform: translateZ(10px);
+        }
+
+        button:hover {
+            background: linear-gradient(45deg, #764ba2, #667eea);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+            transform: translateZ(15px) scale(1.05);
+        }
+
+        .message {
+            color: #ff0000;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Real or Fake Audio Detection</h1>
+        <p>Upload a .wav audio file to check if it's Real or Fake.</p>
+        <form action="/" method="post" enctype="multipart/form-data">
+            <input type="file" name="audio_file" accept=".wav" id="fileInput">
+            <button type="submit">Analyze File</button>
+        </form>
+        <br>
+        <div id="recordingStatus"></div>
+        <button id="recordButton">Start Recording</button>
+        <button id="stopButton" disabled>Stop Recording</button>
+        <br><br>
+        <audio id="recordedAudio" controls style="display:none;"></audio>
+        <br>
+        <button id="analyzeRecorded" disabled>Analyze Recorded Audio</button>
+        {% if message %}
+        <p class="message">{{ message }}</p>
+        {% endif %}
+    </div>
+    <script>
+        let mediaRecorder;
+        let recordedChunks = [];
+        let audioBlob;
+        let audioContext;
+        let recorder;
+
+        const recordButton = document.getElementById('recordButton');
+        const stopButton = document.getElementById('stopButton');
+        const analyzeButton = document.getElementById('analyzeRecorded');
+        const fileInput = document.getElementById('fileInput');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const recordedAudio = document.getElementById('recordedAudio');
+
+        // WAV encoder function
+        function encodeWAV(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+
+            // RIFF chunk descriptor
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(view, 8, 'WAVE');
+
+            // fmt sub-chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+
+            // data sub-chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+
+            // Write samples
+            for (let i = 0; i < samples.length; i++) {
+                view.setInt16(44 + i * 2, samples[i] * 32767, true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        recordButton.addEventListener('click', async () => {
+            // Reset previous recording
+            recordedAudio.style.display = 'none';
+            recordedAudio.src = '';
+            analyzeButton.disabled = true;
+            recordingStatus.innerHTML = '';
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(stream);
+                recorder = audioContext.createScriptProcessor(4096, 1, 1);
+
+                const samples = [];
+
+                recorder.onaudioprocess = (event) => {
+                    const inputBuffer = event.inputBuffer.getChannelData(0);
+                    for (let i = 0; i < inputBuffer.length; i++) {
+                        samples.push(inputBuffer[i]);
+                    }
+                };
+
+                source.connect(recorder);
+                recorder.connect(audioContext.destination);
+
+                recordButton.disabled = true;
+                stopButton.disabled = false;
+                recordingStatus.innerHTML = '<span style="color: red; font-weight: bold;">Recording... Speak now.</span>';
+
+                // Store samples for later
+                window.recordedSamples = samples;
+                window.sampleRate = audioContext.sampleRate;
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                alert('Could not access microphone. Please allow permissions.');
+            }
+        });
+
+        stopButton.addEventListener('click', () => {
+            if (recorder) {
+                recorder.disconnect();
+                audioContext.close();
+                audioBlob = encodeWAV(window.recordedSamples, window.sampleRate);
+                const audioUrl = URL.createObjectURL(audioBlob);
+                recordedAudio.src = audioUrl;
+                recordedAudio.style.display = 'block';
+                analyzeButton.disabled = false;
+                recordButton.disabled = false;
+                stopButton.disabled = true;
+                recordingStatus.innerHTML = 'Recording stopped. You can play the audio below or analyze it.';
+            }
+        });
+
+        analyzeButton.addEventListener('click', () => {
+            if (audioBlob) {
+                const formData = new FormData();
+                formData.append('audio_file', audioBlob, 'recorded_audio.wav');
+
+                fetch('/', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(html => {
+                    document.open();
+                    document.write(html);
+                    document.close();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error analyzing audio.');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

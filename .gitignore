@@ -1,0 +1,18 @@
+# Python bytecode and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Application-generated uploads and microphone recordings
+uploads/
+recorded/
+
+# Local ML artifacts; regenerate with train.py or distribute with Git LFS if needed
+*.pth
+*.pkl
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/

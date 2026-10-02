@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real or Fake Detection Result</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            text-align: center;
+            padding: 40px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #4a5568;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .result {
+            font-size: 1.2em;
+            margin: 30px 0;
+            padding: 20px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .Real {
+            background-color: #c6f6d5;
+            color: #22543d;
+            border: 2px solid #00ff62;
+        }
+
+        .Fake {
+            background-color: #fed7d7;
+            color: #742a2a;
+            border: 2px solid #ff0404;
+        }
+
+        .error {
+            background-color: #fef5e7;
+            color: #744210;
+            border: 2px solid #f6ad55;
+        }
+
+        .button-container {
+            margin-top: 30px;
+        }
+
+        .back-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Analysis Result</h1>
+        <div class="result {% if 'Real' in result %}Real{% elif 'Fake' in result %}Fake{% else %}error{% endif %}">
+            {{ result }}
+        </div>
+        <div class="button-container">
+            <button class="back-button" onclick="goBack()">Analyze Another File</button>
+        </div>
+    </div>
+
+    <script>
+        function goBack() {
+            window.location.href = "/";
+        }
+    </script>
+</body>
+</html>
